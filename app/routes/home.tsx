@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { Link, useRevalidator } from "react-router";
+import { Link } from "react-router";
 import type { Route } from "./+types/home";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { MissingTokenError } from "../lib/football-data.server";
 import { getWorldCupView } from "../lib/world-cup.server";
 import { GroupCard } from "../components/GroupCard";
@@ -30,25 +30,8 @@ export async function loader() {
   }
 }
 
-/**
- * Silently re-fetches loader data on an interval so the page behaves like a
- * live poster. Pauses while the tab is hidden to avoid pointless API calls.
- */
-function useAutoRefresh() {
-  const revalidator = useRevalidator();
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        revalidator.revalidate();
-      }
-    }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [revalidator]);
-}
-
 export default function Home({ loaderData }: Route.ComponentProps) {
-  useAutoRefresh();
+  useAutoRefresh(REFRESH_INTERVAL_MS);
 
   if (loaderData.tokenMissing) {
     return <TokenMissingScreen />;

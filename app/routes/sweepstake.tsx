@@ -1,8 +1,14 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/sweepstake";
 import { SweepstakePersonCard } from "../components/SweepstakePersonCard";
+import { LocalTime } from "../components/LocalTime";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { MissingTokenError } from "../lib/football-data.server";
 import { getSweepstakeView } from "../lib/sweepstake.server";
+
+// Slower than the homepage — standings change infrequently and the shared
+// server cache (120s) means most revalidates never hit the upstream API.
+const SWEEPSTAKE_REFRESH_MS = 5 * 60 * 1000;
 
 export function meta(_: Route.MetaArgs) {
   return [
@@ -26,6 +32,8 @@ export async function loader() {
 }
 
 export default function Sweepstake({ loaderData }: Route.ComponentProps) {
+  useAutoRefresh(SWEEPSTAKE_REFRESH_MS);
+
   if (loaderData.tokenMissing) {
     return <TokenMissingScreen />;
   }
@@ -64,7 +72,8 @@ export default function Sweepstake({ loaderData }: Route.ComponentProps) {
       </div>
 
       <footer className="mt-10 text-center text-xs text-white/40">
-        Points from group stage standings · data from football-data.org
+        Updates every 5 min · last updated{" "}
+        <LocalTime iso={view.lastUpdated} /> · data from football-data.org
       </footer>
     </main>
   );

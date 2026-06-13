@@ -29,6 +29,7 @@ export interface SweepstakePersonView {
 
 export interface SweepstakeView {
   participants: SweepstakePersonView[];
+  lastUpdated: string;
 }
 
 interface TeamStandingEntry {
@@ -141,5 +142,8 @@ export async function getSweepstakeView(): Promise<SweepstakeView> {
     participant.isLeading = participant.averagePoints === maxAverage;
   }
 
-  return { participants };
+  return {
+    participants,
+    lastUpdated: new Date().toISOString(),
+  };
 }

@@ -126,7 +126,12 @@ async function fetchCached<T>(path: string, ttlMs: number): Promise<T> {
   return data;
 }
 
-const STANDINGS_TTL_MS = 60_000;
+// Shared cache TTLs — tuned to stay under football-data.org free tier (10 req/min)
+// on a single Render instance even with homepage (30s) + sweepstake (5 min) open:
+//   matches:   30s → up to ~2 upstream calls/min
+//   standings: 120s → up to ~0.5 upstream calls/min
+//   combined worst case ≈ 2.5/min (sweepstake revalidates usually hit this cache)
+const STANDINGS_TTL_MS = 120_000;
 const MATCHES_TTL_MS = 30_000;
 
 export function getStandings(): Promise<FdStandingsResponse> {
