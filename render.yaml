@@ -1,0 +1,14 @@
+# Free, single-instance deploy on Render.
+# A single instance keeps the in-memory cache (and the football-data.org call
+# count) shared across all visitors, so we stay under the free 10 req/min limit.
+services:
+  - type: web
+    name: world-cup-tracker
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    numInstances: 1
+    envVars:
+      - key: FOOTBALL_DATA_TOKEN
+        sync: false # set this in the Render dashboard, never commit it

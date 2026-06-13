@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* The poster is always dark, regardless of the OS colour scheme. */
+html,
+body {
+  color-scheme: dark;
+  background-color: #020617; /* slate-950 */
+  color: #f8fafc; /* slate-50 */
+  background-image: radial-gradient(
+      circle at 15% 0%,
+      rgba(99, 102, 241, 0.18),
+      transparent 45%
+    ),
+    radial-gradient(circle at 85% 10%, rgba(16, 185, 129, 0.12), transparent 40%);
+  background-attachment: fixed;
+}
