@@ -15,7 +15,7 @@ export function meta(_: Route.MetaArgs) {
     { title: "Sweepstake - World Cup 2026" },
     {
       name: "description",
-      content: "World Cup sweepstake group-stage tracker.",
+      content: "World Cup sweepstake tournament survival tracker.",
     },
   ];
 }
@@ -50,7 +50,9 @@ export default function Sweepstake({ loaderData }: Route.ComponentProps) {
           <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
             Sweepstake
           </h1>
-          <p className="mt-2 text-sm text-white/60">Group stage tracker</p>
+          <p className="mt-2 text-sm text-white/60">
+            Tournament survival tracker
+          </p>
         </div>
         <Link
           to="/"
@@ -60,9 +62,25 @@ export default function Sweepstake({ loaderData }: Route.ComponentProps) {
         </Link>
       </header>
 
-      <div className="mb-6 flex items-center gap-2 text-sm text-white/50">
-        <span className="h-3 w-3 rounded-sm bg-emerald-400" />
-        Highest average points per team
+      {view.lastMatchSummary && (
+        <p className="mb-6 rounded-xl border border-white/10 bg-white/3 px-4 py-3 text-sm text-white/70">
+          {view.lastMatchSummary}
+        </p>
+      )}
+
+      <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/50">
+        <span className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-sm bg-emerald-400" />
+          Won last match
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-sm bg-amber-400" />
+          Drew last match
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-sm bg-red-400" />
+          Knocked out
+        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -88,7 +106,7 @@ function TokenMissingScreen() {
         <code className="rounded bg-white/10 px-1.5 py-0.5">.env</code> file to
         load sweepstake data:
       </p>
-      <pre className="mt-4 w-full overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left text-sm">
+      <pre className="mt-4 w-full overflow-x-auto rounded-xl border border-white/10 bg-white/3 p-4 text-left text-sm">
         <code>FOOTBALL_DATA_TOKEN=your_token_here</code>
       </pre>
       <p className="mt-4 text-sm text-white/50">

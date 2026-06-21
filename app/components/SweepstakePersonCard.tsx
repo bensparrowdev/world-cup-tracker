@@ -1,8 +1,19 @@
-import type { SweepstakePersonView } from "../lib/sweepstake.server";
+import type {
+  SweepstakePersonView,
+  TeamHighlight,
+} from "../lib/sweepstake.server";
 import { TeamCrest } from "./TeamCrest";
 
 const HEAD_CELL = "px-1.5 py-2 text-center font-semibold text-white/50";
 const BODY_CELL = "px-1.5 py-2 text-center tabular-nums";
+
+const ROW_STYLES: Record<TeamHighlight, string> = {
+  active: "border-l-4 border-l-transparent",
+  eliminated:
+    "border-l-4 border-l-red-400 bg-red-500/10 text-white/50",
+  lastWin: "border-l-4 border-l-emerald-400 bg-emerald-500/10",
+  lastDraw: "border-l-4 border-l-amber-400 bg-amber-500/10",
+};
 
 export function SweepstakePersonCard({
   person,
@@ -10,13 +21,7 @@ export function SweepstakePersonCard({
   person: SweepstakePersonView;
 }) {
   return (
-    <section
-      className={`rounded-2xl border p-4 shadow-lg ${
-        person.isLeading
-          ? "border-l-4 border-l-emerald-400 border-emerald-400/30 bg-emerald-500/10"
-          : "border-white/10 bg-white/[0.03]"
-      }`}
-    >
+    <section className="rounded-2xl border border-white/10 bg-white/3 p-4 shadow-lg">
       <h2 className="mb-3 text-lg font-bold tracking-tight">{person.name}</h2>
 
       <table className="w-full border-collapse text-sm">
@@ -32,7 +37,7 @@ export function SweepstakePersonCard({
           {person.teams.map((row) => (
             <tr
               key={row.team.name}
-              className={`border-b border-white/5 last:border-0 ${
+              className={`border-b border-white/5 last:border-0 ${ROW_STYLES[row.highlight]} ${
                 row.missing ? "text-amber-400/80" : ""
               }`}
             >
@@ -59,7 +64,10 @@ export function SweepstakePersonCard({
           Total: {person.totalPoints} pts
         </span>
         <span className="mx-2 text-white/30">·</span>
-        <span>Avg: {person.averagePoints.toFixed(1)} pts</span>
+        <span>
+          {person.teamsRemaining} team{person.teamsRemaining === 1 ? "" : "s"}{" "}
+          still in
+        </span>
       </p>
     </section>
   );
