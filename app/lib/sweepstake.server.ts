@@ -3,6 +3,7 @@ import {
   getStandings,
   type FdMatch,
   type FdStandingGroup,
+  type FdStandingRow,
   type FdTeam,
 } from "./football-data.server";
 import {
@@ -46,6 +47,8 @@ interface TeamStandingEntry {
 }
 
 const GROUP_MATCHES_PER_TEAM = 3;
+/** Eight of the twelve third-placed teams advance to the Round of 32 in 2026. */
+const THIRD_PLACE_QUALIFIERS = 8;
 
 const KNOCKOUT_STAGES: ReadonlySet<string> = new Set([
   "LAST_32",
@@ -96,22 +99,65 @@ function buildTeamStandingsLookup(
   return lookup;
 }
 
-/** Teams definitively out after group stage (3 games, 3rd or 4th). */
+/** True when every team in every group has completed all 3 group matches. */
+function allGroupsComplete(rawGroups: FdStandingGroup[]): boolean {
+  const groups = rawGroups.filter((group) => group.type === "TOTAL");
+  return (
+    groups.length > 0 &&
+    groups.every(
+      (group) =>
+        group.table.length >= 4 &&
+        group.table.every(
+          (row) => row.playedGames >= GROUP_MATCHES_PER_TEAM,
+        ),
+    )
+  );
+}
+
+/**
+ * Ranks third-placed teams across groups (WC 2026 uses points, then GD, then
+ * goals scored — same order FIFA uses before conduct score / FIFA ranking).
+ */
+function compareThirdPlaced(a: FdStandingRow, b: FdStandingRow): number {
+  if (b.points !== a.points) return b.points - a.points;
+  if (b.goalDifference !== a.goalDifference) {
+    return b.goalDifference - a.goalDifference;
+  }
+  return b.goalsFor - a.goalsFor;
+}
+
+/**
+ * Group-stage eliminations for the 48-team 2026 format:
+ * - 4th place in each group (after 3 games) is out.
+ * - 3rd place may still reach the Round of 32 (8 of 12 best third-placed sides).
+ * - Once all groups are complete, the 4 lowest-ranked third-placed teams are out.
+ */
 function buildGroupEliminatedNames(
   rawGroups: FdStandingGroup[],
 ): Set<string> {
   const eliminated = new Set<string>();
+  const totalGroups = rawGroups.filter((group) => group.type === "TOTAL");
 
-  for (const group of rawGroups) {
-    if (group.type !== "TOTAL") continue;
-
+  for (const group of totalGroups) {
     for (const row of group.table) {
       if (
         row.playedGames >= GROUP_MATCHES_PER_TEAM &&
-        row.position > 2
+        row.position === 4
       ) {
         eliminated.add(row.team.name);
       }
+    }
+  }
+
+  if (allGroupsComplete(rawGroups)) {
+    const thirdPlaced = totalGroups
+      .map((group) => group.table.find((row) => row.position === 3))
+      .filter((row): row is FdStandingRow => row !== undefined);
+
+    thirdPlaced.sort(compareThirdPlaced);
+
+    for (const row of thirdPlaced.slice(THIRD_PLACE_QUALIFIERS)) {
+      eliminated.add(row.team.name);
     }
   }
 
