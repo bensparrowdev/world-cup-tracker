@@ -55,9 +55,9 @@ export function MatchHero({ hero }: { hero: HeroView }) {
           )}
           {hero.statusLabel}
         </span>
-        {hero.group && (
+        {hero.roundLabel && (
           <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white/70">
-            {hero.group}
+            {hero.roundLabel}
           </span>
         )}
       </div>

@@ -21,7 +21,7 @@ export class MissingTokenError extends Error {
 
 export interface FdTeam {
   id: number;
-  name: string;
+  name: string | null;
   shortName: string | null;
   tla: string | null;
   crest: string | null;
@@ -75,6 +75,8 @@ export interface FdMatch {
   stage: string;
   group: string | null; // matches format, e.g. "GROUP_A"
   matchday: number | null;
+  /** Match clock when live; omitted from list responses once finished. */
+  minute?: number | null;
   homeTeam: FdTeam;
   awayTeam: FdTeam;
   score: {
@@ -90,15 +92,25 @@ export interface FdMatchesResponse {
 
 // --- In-memory TTL cache ---
 // Shared across all requests in a single server process, so the number of
-// upstream calls is decoupled from the number of visitors. This keeps us
-// well under the free tier's 10 requests/minute limit.
+// upstream calls is decoupled from the number of visitors. In-flight dedup,
+// minimum fetch spacing, and 429 backoff keep us under the free tier limit.
+// Note: Vite dev HMR reloads this module and clears the cache — avoid rapid
+// saves while testing against the live API.
 
 interface CacheEntry<T> {
   data: T;
   expiresAt: number;
+  fetchedAt: number;
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
+const inFlight = new Map<string, Promise<unknown>>();
+const backoffUntil = new Map<string, number>();
+
+/** Minimum gap between upstream fetches for the same path (~8 req/min cap). */
+const MIN_FETCH_INTERVAL_MS = 7_500;
+/** After a 429, stop calling upstream until this window elapses. */
+const RATE_LIMIT_BACKOFF_MS = 90_000;
 
 async function fetchCached<T>(path: string, ttlMs: number): Promise<T> {
   const token = process.env.FOOTBALL_DATA_TOKEN;
@@ -106,15 +118,52 @@ async function fetchCached<T>(path: string, ttlMs: number): Promise<T> {
 
   const now = Date.now();
   const cached = cache.get(path) as CacheEntry<T> | undefined;
-  if (cached && cached.expiresAt > now) return cached.data;
+
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+
+  // Serve stale data while in a rate-limit backoff window.
+  if (cached && now < (backoffUntil.get(path) ?? 0)) {
+    return cached.data;
+  }
+
+  // Even after TTL expiry, don't hammer upstream if we fetched recently.
+  if (cached && now - cached.fetchedAt < MIN_FETCH_INTERVAL_MS) {
+    return cached.data;
+  }
+
+  const pending = inFlight.get(path) as Promise<T> | undefined;
+  if (pending) return pending;
+
+  const promise = fetchFromUpstream<T>(path, ttlMs, cached, now);
+  inFlight.set(path, promise);
+
+  try {
+    return await promise;
+  } finally {
+    inFlight.delete(path);
+  }
+}
+
+async function fetchFromUpstream<T>(
+  path: string,
+  ttlMs: number,
+  cached: CacheEntry<T> | undefined,
+  now: number,
+): Promise<T> {
+  const token = process.env.FOOTBALL_DATA_TOKEN;
+  if (!token) throw new MissingTokenError();
 
   const response = await fetch(`${BASE_URL}${path}`, {
     headers: { "X-Auth-Token": token },
   });
 
   if (!response.ok) {
-    // Serve stale data on a transient upstream error rather than breaking the
-    // page; only throw if we have nothing cached to fall back on.
+    if (response.status === 429) {
+      backoffUntil.set(path, now + RATE_LIMIT_BACKOFF_MS);
+    }
+    // Prefer stale data over breaking the page (including expired cache entries).
     if (cached) return cached.data;
     throw new Error(
       `football-data.org request failed: ${response.status} ${response.statusText}`,
@@ -122,17 +171,18 @@ async function fetchCached<T>(path: string, ttlMs: number): Promise<T> {
   }
 
   const data = (await response.json()) as T;
-  cache.set(path, { data, expiresAt: now + ttlMs });
+  cache.set(path, { data, expiresAt: now + ttlMs, fetchedAt: now });
+  backoffUntil.delete(path);
   return data;
 }
 
 // Shared cache TTLs — tuned to stay under football-data.org free tier (10 req/min)
-// on a single Render instance even with homepage (30s) + sweepstake (5 min) open:
-//   matches:   30s → up to ~2 upstream calls/min
-//   standings: 120s → up to ~0.5 upstream calls/min
-//   combined worst case ≈ 2.5/min (sweepstake revalidates usually hit this cache)
-const STANDINGS_TTL_MS = 120_000;
-const MATCHES_TTL_MS = 30_000;
+// on a single Render instance even with homepage (60s) + sweepstake (5 min) open:
+//   matches:   60s → up to ~1 upstream call/min
+//   standings: 180s → up to ~0.33 upstream calls/min
+//   combined worst case ≈ 1.3/min (sweepstake revalidates usually hit this cache)
+const STANDINGS_TTL_MS = 180_000;
+const MATCHES_TTL_MS = 60_000;
 
 export function getStandings(): Promise<FdStandingsResponse> {
   return fetchCached<FdStandingsResponse>(

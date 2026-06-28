@@ -3,18 +3,18 @@ import type { Route } from "./+types/home";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { MissingTokenError } from "../lib/football-data.server";
 import { getWorldCupView } from "../lib/world-cup.server";
-import { GroupCard } from "../components/GroupCard";
+import { KnockoutBracket } from "../components/KnockoutBracket";
 import { LocalTime } from "../components/LocalTime";
 import { MatchHero } from "../components/MatchHero";
 
-const REFRESH_INTERVAL_MS = 30_000;
+const REFRESH_INTERVAL_MS = 60_000;
 
 export function meta(_: Route.MetaArgs) {
   return [
     { title: "World Cup 2026 - Live Tracker" },
     {
       name: "description",
-      content: "Live FIFA World Cup 2026 scores and group standings.",
+      content: "Live FIFA World Cup 2026 scores and knockout bracket.",
     },
   ];
 }
@@ -66,22 +66,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <div className="mt-10 mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Group Stage</h2>
-        <span className="flex items-center gap-2 text-sm text-white/50">
-          <span className="h-3 w-3 rounded-sm bg-emerald-400" />
-          Qualifies
-        </span>
+      <div className="mt-10 mb-4">
+        <h2 className="text-2xl font-bold tracking-tight">Knockout Stage</h2>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {view.groups.map((group) => (
-          <GroupCard key={group.name} group={group} />
-        ))}
-      </div>
+      <KnockoutBracket rounds={view.knockoutRounds} />
 
       <footer className="mt-10 text-center text-xs text-white/40">
-        Auto-updates every 30s - last updated{" "}
+        Auto-updates every 60s - last updated{" "}
         <LocalTime iso={view.lastUpdated} /> - data from football-data.org
       </footer>
     </main>

@@ -60,10 +60,11 @@ const KNOCKOUT_STAGES: ReadonlySet<string> = new Set([
 ]);
 
 function toTeamView(team: FdTeam): TeamView {
+  const name = team.name ?? "TBD";
   return {
-    name: team.name,
-    shortName: team.shortName ?? team.name,
-    tla: team.tla ?? team.name.slice(0, 3).toUpperCase(),
+    name,
+    shortName: team.shortName ?? name,
+    tla: team.tla ?? name.slice(0, 3).toUpperCase(),
     crest: team.crest,
   };
 }
@@ -86,6 +87,7 @@ function buildTeamStandingsLookup(
 
     const groupName = prettyGroup(group.group);
     for (const row of group.table) {
+      if (!row.team.name) continue;
       lookup.set(row.team.name, {
         team: toTeamView(row.team),
         points: row.points,
@@ -142,7 +144,8 @@ function buildGroupEliminatedNames(
     for (const row of group.table) {
       if (
         row.playedGames >= GROUP_MATCHES_PER_TEAM &&
-        row.position === 4
+        row.position === 4 &&
+        row.team.name
       ) {
         eliminated.add(row.team.name);
       }
@@ -157,7 +160,7 @@ function buildGroupEliminatedNames(
     thirdPlaced.sort(compareThirdPlaced);
 
     for (const row of thirdPlaced.slice(THIRD_PLACE_QUALIFIERS)) {
-      eliminated.add(row.team.name);
+      if (row.team.name) eliminated.add(row.team.name);
     }
   }
 
@@ -174,9 +177,9 @@ function buildKnockoutEliminatedNames(matches: FdMatch[]): Set<string> {
     }
 
     const winner = match.score.winner;
-    if (winner === "HOME_TEAM") {
+    if (winner === "HOME_TEAM" && match.awayTeam.name) {
       eliminated.add(match.awayTeam.name);
-    } else if (winner === "AWAY_TEAM") {
+    } else if (winner === "AWAY_TEAM" && match.homeTeam.name) {
       eliminated.add(match.homeTeam.name);
     }
   }
@@ -209,11 +212,11 @@ function buildLastMatchHighlights(
   const winner = last.score.winner;
 
   if (winner === "DRAW") {
-    highlights.set(last.homeTeam.name, "lastDraw");
-    highlights.set(last.awayTeam.name, "lastDraw");
-  } else if (winner === "HOME_TEAM") {
+    if (last.homeTeam.name) highlights.set(last.homeTeam.name, "lastDraw");
+    if (last.awayTeam.name) highlights.set(last.awayTeam.name, "lastDraw");
+  } else if (winner === "HOME_TEAM" && last.homeTeam.name) {
     highlights.set(last.homeTeam.name, "lastWin");
-  } else if (winner === "AWAY_TEAM") {
+  } else if (winner === "AWAY_TEAM" && last.awayTeam.name) {
     highlights.set(last.awayTeam.name, "lastWin");
   }
 
@@ -223,7 +226,7 @@ function buildLastMatchHighlights(
 function formatLastMatchSummary(match: FdMatch): string {
   const home = match.score.fullTime.home ?? 0;
   const away = match.score.fullTime.away ?? 0;
-  return `Last result: ${match.homeTeam.shortName ?? match.homeTeam.name} ${home}–${away} ${match.awayTeam.shortName ?? match.awayTeam.name}`;
+  return `Last result: ${match.homeTeam.shortName ?? match.homeTeam.name ?? "TBD"} ${home}–${away} ${match.awayTeam.shortName ?? match.awayTeam.name ?? "TBD"}`;
 }
 
 function resolveHighlight(
